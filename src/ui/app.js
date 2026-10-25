@@ -12,25 +12,28 @@ export function mountApp(root, handlers) {
   let submitted = null;
 
   root.innerHTML = `
-    <header class="topbar"><a class="brand" href="#"><span class="brand-mark">F</span>FairKits</a><span class="tag">COMMUNITY DISTRIBUTION</span></header>
-    <main class="workspace">
-      <section class="intro"><div><p class="eyebrow">A LITTLE STRUCTURE. A FAIRER SHARE.</p><h1>Make every donation count.</h1><p>Bring your supplies and household requests together.<br>Build a fair distribution plan, then review it with your team.</p></div>
-      <button type="button" data-action="example">Load Example Data</button></section>
+    <header class="topbar"><a class="brand" href="#"><span class="brand-mark" aria-hidden="true">F</span>FairKits</a><span class="tag">Distribution planner</span></header>
+    <a class="skip-link" href="#main-content">Skip to work area</a>
+    <main id="main-content" class="workspace">
+      <section class="intro"><div><h1>Plan a fair distribution.</h1><p>Compare household requests with available stock, review each proposed allocation, and export the plan.</p></div>
+      <button type="button" data-action="example">Load example data</button></section>
       <div id="app-error" class="notice error" role="alert" tabindex="-1" hidden></div>
       <p id="app-status" class="status" role="status" aria-live="polite">Start with your supplies, or load the example to try FairKits.</p>
       <fieldset id="editor"><legend class="sr-only">Distribution inputs</legend>
-        <section class="panel" aria-labelledby="supplies-title"><div class="section-heading"><div><p class="eyebrow">STEP 01</p><h2 id="supplies-title">Available supplies</h2><p>Use whole units, such as bags, bottles, or kits.</p></div><button type="button" data-action="import-items">Import supplies CSV</button></div>
-          <div id="supplies"></div><button type="button" data-action="add-item" class="add-button">+ Add supply</button>
-        </section>
-        <section class="panel" aria-labelledby="households-title"><div class="section-heading"><div><p class="eyebrow">STEP 02</p><h2 id="households-title">Household requests</h2><p>Use anonymous household IDs. Do not enter names or contact details.</p></div><button type="button" data-action="import-requests">Import requests CSV</button></div>
-          <div id="households"></div><button type="button" data-action="add-recipient" class="add-button">+ Add household</button>
-        </section>
+        <div class="input-grid">
+          <section class="panel" aria-labelledby="supplies-title"><div class="section-heading"><div><h2 id="supplies-title">Available supplies</h2><p>Enter stock in whole units, such as bags, bottles, or kits.</p></div><button type="button" data-action="import-items">Import supplies CSV</button></div>
+            <div id="supplies"></div><button type="button" data-action="add-item" class="add-button">+ Add supply</button>
+          </section>
+          <section class="panel" aria-labelledby="households-title"><div class="section-heading"><div><h2 id="households-title">Household requests</h2><p>Use anonymous IDs only. Do not enter names or contact details.</p></div><button type="button" data-action="import-requests">Import requests CSV</button></div>
+            <div id="households"></div><button type="button" data-action="add-recipient" class="add-button">+ Add household</button>
+          </section>
+        </div>
         <details class="csv-help"><summary>CSV format & import help</summary><p>Each import replaces its corresponding list. Import supplies first; requests must use matching supply IDs.</p><p>Supplies header: <code>id,name,stock</code> (stock: zero or greater).</p><p>Requests header: <code>recipientId,itemId,quantity</code> (quantity: one or greater). Repeated requests are combined by the importer.</p></details>
         <div class="calculate-bar"><div><strong>Ready to make a plan?</strong><p>Round-robin allocation gives each household a turn.</p></div><button type="button" data-action="calculate" class="primary">Calculate Allocation <span aria-hidden="true">→</span></button></div>
         <input type="file" id="items-file" accept=".csv,text/csv" hidden aria-label="Supplies CSV file">
         <input type="file" id="requests-file" accept=".csv,text/csv" hidden aria-label="Requests CSV file">
       </fieldset>
-      <section class="panel results-panel" aria-labelledby="results-title"><div class="section-heading"><div><p class="eyebrow">STEP 03</p><h2 id="results-title">Review your allocation</h2></div><button type="button" data-action="export" disabled>Export results CSV</button></div><div id="results"></div></section>
+      <section class="panel results-panel" aria-labelledby="results-title"><div class="section-heading"><div><h2 id="results-title">Allocation review</h2><p>Proposed distribution by household, with unmet requests and stock left.</p></div><button type="button" data-action="export" disabled>Export results CSV</button></div><div id="results"></div></section>
       <footer>Made for communities. Decisions stay with people.<span>Review every allocation before distribution. Data stays in this browser tab and is lost on refresh.</span></footer>
     </main>`;
 
@@ -47,7 +50,7 @@ export function mountApp(root, handlers) {
   function renderResults() {
     find('[data-action="export"]').disabled = busy || !result;
     if (!result) {
-      find("#results").innerHTML = '<div class="empty"><span class="empty-symbol" aria-hidden="true">◎</span><h3>Your distribution plan will appear here</h3><p>Enter supplies and requests, then calculate to see allocations, unmet needs, and remaining stock.</p></div>';
+      find("#results").innerHTML = '<div class="empty"><h3>No allocation to review</h3><p>Add supplies and household requests, then calculate to see the proposed distribution.</p></div>';
       return;
     }
     const map = new Map();
@@ -64,7 +67,7 @@ export function mountApp(root, handlers) {
     find("#results").innerHTML = `<p class="notice review">Proposed allocation · Human review required before distribution.</p>
       ${(result.warnings ?? []).map(warning => `<p class="notice review">${escape(warning)}</p>`).join("")}
       <div class="table-scroll" tabindex="0" role="region" aria-label="Household allocation results"><table><caption>Household allocations and unmet requests</caption><thead><tr><th>Household</th><th>Supply</th><th>Requested</th><th>Allocated</th><th>Unmet</th></tr></thead><tbody>${rows || '<tr><td colspan="5">No household requests to allocate.</td></tr>'}</tbody></table></div>
-      <h3 class="stock-heading">Remaining inventory</h3><div class="stock-grid">${submitted.items.map(item => `<div class="stock-card"><span>${escape(item.name)}</span><strong>${result.remainingStock[item.id]}</strong><small>units remaining</small></div>`).join("") || '<p>No supplies entered.</p>'}</div>`;
+      <h3 class="stock-heading">Remaining inventory</h3>${submitted.items.length ? `<ul class="stock-list">${submitted.items.map(item => `<li><span>${escape(item.name)}</span><strong>${result.remainingStock[item.id]}</strong><small>units left</small></li>`).join("")}</ul>` : '<p>No supplies entered.</p>'}`;
   }
   function clearResults() {
     result = null;
@@ -81,7 +84,7 @@ export function mountApp(root, handlers) {
     return `<input type="number" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" required value="${escape(value)}" ${attributes} aria-label="${escape(label)}">`;
   }
   function renderSupplies() {
-    find("#supplies").innerHTML = items.length ? `<div class="table-scroll"><table><caption class="sr-only">Available supplies</caption><thead><tr><th>Supply name</th><th>Supply ID</th><th>Available units</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${items.map((item, i) => `<tr><td><input data-item="${i}" data-field="name" value="${escape(item.name)}" aria-label="Supply ${i + 1} name" required></td><td><code>${escape(item.id)}</code></td><td>${quantityInput(item.stock, `data-item="${i}" data-field="stock"`, `Available units for ${item.name || item.id}`)}</td><td><button type="button" class="remove" data-action="remove-item" data-index="${i}" aria-label="Remove supply ${escape(item.name || item.id)}">Remove</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="empty-inline">No supplies yet. Add your first supply or import a CSV.</p>';
+    find("#supplies").innerHTML = items.length ? `<div class="table-scroll" tabindex="0" role="region" aria-label="Available supplies editor"><table><caption class="sr-only">Available supplies</caption><thead><tr><th>Supply name</th><th>Supply ID</th><th>Available units</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${items.map((item, i) => `<tr><td><input data-item="${i}" data-field="name" value="${escape(item.name)}" aria-label="Supply ${i + 1} name" required></td><td><code>${escape(item.id)}</code></td><td>${quantityInput(item.stock, `data-item="${i}" data-field="stock"`, `Available units for ${item.name || item.id}`)}</td><td><button type="button" class="remove" data-action="remove-item" data-index="${i}" aria-label="Remove supply ${escape(item.name || item.id)}">Remove</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="empty-inline">No supplies yet. Add your first supply or import a CSV.</p>';
   }
   function renderHouseholds() {
     // Keep unknown imported references visible instead of silently dropping them.
@@ -89,7 +92,7 @@ export function mountApp(root, handlers) {
     for (const recipient of recipients) for (const id of Object.keys(recipient.requests)) {
       if (!columns.has(id)) columns.set(id, `${id} (missing supply)`);
     }
-    find("#households").innerHTML = recipients.length ? `<div class="table-scroll" tabindex="0" role="region" aria-label="Household request editor"><table><caption class="sr-only">Requested units per household</caption><thead><tr><th>Household ID</th>${[...columns.values()].map(name => `<th>${escape(name)}</th>`).join("")}<th><span class="sr-only">Actions</span></th></tr></thead><tbody>${recipients.map((recipient, i) => `<tr><td><input data-recipient="${i}" data-field="id" value="${escape(recipient.id)}" aria-label="Household ${i + 1} ID" required></td>${[...columns].map(([id, name]) => `<td>${quantityInput(Object.hasOwn(recipient.requests, id) ? recipient.requests[id] : 0, `data-recipient="${i}" data-request="${escape(id)}"`, `${recipient.id}: ${name} requested units`)}</td>`).join("")}<td><button type="button" class="remove" data-action="remove-recipient" data-index="${i}" aria-label="Remove household ${escape(recipient.id)}">Remove</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="empty-inline">No households yet. Add anonymous household IDs and their requested units.</p>';
+    find("#households").innerHTML = recipients.length ? `<div class="table-scroll request-scroll" tabindex="0" role="region" aria-label="Household request editor"><table><caption class="sr-only">Requested units per household</caption><thead><tr><th>Household ID</th>${[...columns.values()].map(name => `<th>${escape(name)}</th>`).join("")}<th><span class="sr-only">Actions</span></th></tr></thead><tbody>${recipients.map((recipient, i) => `<tr><th scope="row"><input data-recipient="${i}" data-field="id" value="${escape(recipient.id)}" aria-label="Household ${i + 1} ID" required></th>${[...columns].map(([id, name]) => `<td>${quantityInput(Object.hasOwn(recipient.requests, id) ? recipient.requests[id] : 0, `data-recipient="${i}" data-request="${escape(id)}"`, `${recipient.id}: ${name} requested units`)}</td>`).join("")}<td><button type="button" class="remove" data-action="remove-recipient" data-index="${i}" aria-label="Remove household ${escape(recipient.id)}">Remove</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="empty-inline">No households yet. Add anonymous household IDs and their requested units.</p>';
   }
   function renderEditors() { renderSupplies(); renderHouseholds(); }
   function nextId(prefix, list) {
